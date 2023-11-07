@@ -1,0 +1,70 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: frontend
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-deployment-2
+  namespace: frontend
+  labels:
+    app: frontend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+      - name: frontend
+        image: us-east1-docker.pkg.dev/km1-runcloud/myalpine/gke-backend-cluster 
+        ports:
+        - containerPort: 5000
+        env:
+        - name: FLASK_APP
+          value: "app.py"
+        - name: REDIS_SERVER
+          value: "10.130.3.213:6379"
+        command: ["sh"]
+        args: ["-c","flask run --host=0.0.0.0"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-public-2
+  namespace: frontend
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 5000
+  selector:
+      app: frontend
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: foo-external-2
+  namespace: frontend
+  annotations:
+    kubernetes.io/ingress.class: "gce"
+spec:
+  rules:
+  - host: foo.example.com
+    http:
+      paths:
+      - path: "/"
+        pathType: Prefix
+        backend:
+          service:
+            name: frontend-public-2
+            port:
+              number: 80
+
